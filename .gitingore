@@ -1,0 +1,14 @@
+# Ignore data folders and large files
+data/
+*.xlsx
+*.csv
+*.zip
+*.parquet
+*.pkl
+*.h5
+*.mp4
+*.exe
+
+# Python cache
+__pycache__/
+*.pyc
