@@ -12,3 +12,9 @@ data/
 # Python cache
 __pycache__/
 *.pyc
+*.pyo
+*.pyd
+data/
+.env
+*.db
+streamlit/
