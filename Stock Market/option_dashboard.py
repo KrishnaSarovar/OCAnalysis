@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # import streamlit as st
 # import pandas as pd
 # import requests
@@ -1602,6 +1603,8 @@
 
 # _______________________________________________________________________________________________________________________________
 
+=======
+>>>>>>> eb4cc8a479d046cb9035b15c6195599fb306fe7a
 import streamlit as st
 import pandas as pd
 import requests
@@ -1784,4 +1787,7 @@ if not hist.empty:
     st.dataframe(hist.tail(10), use_container_width=True)
 else:
     st.info("No historical data available yet.")
+<<<<<<< HEAD
 
+=======
+>>>>>>> eb4cc8a479d046cb9035b15c6195599fb306fe7a
