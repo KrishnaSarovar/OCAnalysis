@@ -23,7 +23,7 @@ st.caption("Live Option Chain Tracker with Max Pain, Sentiment & OI Distribution
 # ------------------------------------
 # Auto-refresh every 5 minutes
 # ------------------------------------
-st.markdown("<meta http-equiv='refresh' content='300'>", unsafe_allow_html=True)
+st.markdown("<meta http-equiv='refresh' content='180'>", unsafe_allow_html=True)
 
 # ------------------------------------
 # Market Timings
@@ -38,7 +38,7 @@ def market_is_open():
 # ------------------------------------
 # Fetch NSE Option Chain JSON
 # ------------------------------------
-def fetch_option_chain(symbol="NIFTY", retries=3):
+def fetch_option_chain(symbol="NIFTY", retries=300):
     """Fetch NSE Option Chain data with retry and error handling."""
     url = f"https://www.nseindia.com/api/option-chain-indices?symbol={symbol}"
     headers = {
@@ -312,11 +312,3 @@ else:
         st.success(f"✅ Updated at {datetime.now().strftime('%H:%M:%S')}")
     else:
         st.error("⚠️ Could not fetch live data")
-
-# Historical view
-st.subheader("📈 Historical OI Data (Supabase)")
-hist = load_from_supabase(symbol)
-if not hist.empty:
-    st.dataframe(hist.tail(10), use_container_width=True)
-else:
-    st.info("No historical data available yet.")
