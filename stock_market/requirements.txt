@@ -5,3 +5,5 @@ numpy
 requests
 supabase
 openpyxl
+pytz
+os
