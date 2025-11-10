@@ -32,7 +32,8 @@ MARKET_OPEN = dtime(9, 10)
 MARKET_CLOSE = dtime(22, 0)
 
 def market_is_open():
-    now = datetime.now().time()
+    ist = pytz.timezone("Asia/Kolkata")
+    now = datetime.now(ist).time()
     return MARKET_OPEN <= now <= MARKET_CLOSE
 
 # ------------------------------------
