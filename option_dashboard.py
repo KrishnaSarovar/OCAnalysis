@@ -9,6 +9,7 @@ import time
 import random
 from supabase import create_client, Client
 import pytz
+from zoneinfo import ZoneInfo  # built-in (Python 3.9+). prefer over pytz
 
 # ----------------------------
 # Supabase Configuration
@@ -26,6 +27,8 @@ st.caption("Live Option Chain Tracker with Max Pain, Sentiment & OI Distribution
 # ------------------------------------
 st.markdown("<meta http-equiv='refresh' content='180'>", unsafe_allow_html=True)
 
+IST = ZoneInfo("Asia/Kolkata")
+
 # ------------------------------------
 # Market Timings
 # ------------------------------------
@@ -33,9 +36,8 @@ MARKET_OPEN = dtime(9, 10)
 MARKET_CLOSE = dtime(22, 0)
 
 def market_is_open():
-    ist = pytz.timezone("Asia/Kolkata")
-    now = datetime.now(ist).time()
-    return MARKET_OPEN <= now <= MARKET_CLOSE
+    now_ist = datetime.now(IST).time()
+    return MARKET_OPEN <= now_ist <= MARKET_CLOSE
 
 # ------------------------------------
 # Fetch NSE Option Chain JSON
@@ -91,7 +93,7 @@ def fetch_option_chain(symbol="NIFTY", retries=300):
 
             df = pd.DataFrame(rows).dropna(subset=["StrikePrice"])
             df["Underlying"] = underlying
-            df["Timestamp"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            df["Timestamp"] = datetime.now(IST).isoformat()
             return df
         except Exception as e:
             st.warning(f"Attempt {attempt+1}/{retries} failed: {e}")
@@ -99,28 +101,70 @@ def fetch_option_chain(symbol="NIFTY", retries=300):
     st.error("❌ Failed to fetch data after retries")
     return pd.DataFrame()
 
+def sanitize_row_for_json(row: dict) -> dict:
+    """
+    Replace NaN with None and convert numpy scalar types to native Python types.
+    """
+    sanitized = {}
+    for k, v in row.items():
+        # pandas uses numpy NaN, None, or python types
+        if pd.isna(v):
+            sanitized[k] = None
+            continue
+        # convert numpy scalar -> native
+        if isinstance(v, (np.integer,)):
+            sanitized[k] = int(v)
+        elif isinstance(v, (np.floating,)):
+            # make sure not to send inf/-inf (JSON invalid) — map to None
+            if np.isfinite(v):
+                sanitized[k] = float(v)
+            else:
+                sanitized[k] = None
+        elif isinstance(v, (np.bool_ , bool)):
+            sanitized[k] = bool(v)
+        else:
+            # keep strings, datetimes etc.
+            sanitized[k] = v
+    return sanitized
+
 # ------------------------------------
 # Supabase Integration
 # ------------------------------------
 def save_to_supabase(df, symbol):
+    if df is None or df.empty:
+        st.info("No rows to save to Supabase.")
+        return
+        
     try:
-        records = [
-            {
+        # Ensure df columns exist — coerce to expected names
+        records = []
+        for _, r in df.iterrows():
+            rec = {
                 "symbol": symbol,
-                "expiry": row["Expiry"],
-                "strike_price": row["StrikePrice"],
-                "ce_oi": row["CE_OI"],
-                "ce_change_oi": row["CE_ChangeOI"],
-                "ce_ltp": row["CE_LTP"],
-                "pe_oi": row["PE_OI"],
-                "pe_change_oi": row["PE_ChangeOI"],
-                "pe_ltp": row["PE_LTP"],
-                "underlying": row["Underlying"],
-                "timestamp": row["Timestamp"]
+                "expiry": r.get("Expiry"),
+                "strike_price": r.get("StrikePrice"),
+                "ce_oi": r.get("CE_OI"),
+                "ce_change_oi": r.get("CE_ChangeOI"),
+                "ce_ltp": r.get("CE_LTP"),
+                "pe_oi": r.get("PE_OI"),
+                "pe_change_oi": r.get("PE_ChangeOI"),
+                "pe_ltp": r.get("PE_LTP"),
+                "underlying": r.get("Underlying"),
+                "timestamp": r.get("Timestamp"),
             }
-            for _, row in df.iterrows()
-        ]
-        supabase.table("option_chain_data").insert(records).execute()
+            records.append(sanitize_row_for_json(rec))
+
+            # Supabase expects a list of dicts (JSON serializable)
+        # Insert in chunks to avoid huge payloads (optional)
+        chunk_size = 500
+        for i in range(0, len(records), chunk_size):
+            chunk = records[i : i + chunk_size]
+            res = supabase.table("option_chain_data").insert(chunk).execute()
+            # basic error handling if supabase returns error
+            if hasattr(res, "status_code") and res.status_code >= 400:
+                st.error(f"Supabase returned error: {res}")  # keep simple
+                return
+
         st.success(f"✅ {len(records)} rows uploaded to Supabase")
     except Exception as e:
         st.error(f"❌ Supabase insert failed: {e}")
@@ -219,12 +263,24 @@ if not market_is_open():
     st.warning("⏳ Market Closed (9:15–3:30 updates only)")
 else:
     df = fetch_option_chain(symbol)
-    if not None and not df.empty:
-        save_to_supabase(df, symbol)
+    # -------------------------
+    # Expiry selection & filtering
+    # -------------------------
+    # Replace your expiry selection/filter block with this safer approach:
 
-        expiry_sorted = sorted(pd.to_datetime(df["Expiry"].unique()))
-        expiry_selected = st.selectbox("Select Expiry", [d.strftime("%d-%b-%Y") for d in expiry_sorted[:6]])
-        df = df[df["Expiry"] == pd.to_datetime(expiry_selected).strftime("%d-%b-%Y")]
+    if not df is None and not df.empty:
+        save_to_supabase(df, symbol)
+    
+        # Ensure Expiry column is parsed as datetime (some records may already be strings)
+        df["Expiry_dt"] = pd.to_datetime(df["Expiry"], errors="coerce")
+        expiry_sorted = sorted(df["Expiry_dt"].dropna().unique())
+        expiry_options = [d.strftime("%d-%b-%Y") for d in expiry_sorted[:6]]
+        expiry_selected = st.selectbox("Select Expiry", expiry_options)
+    
+        # Filter by the parsed expiry datetime
+        selected_dt = datetime.strptime(expiry_selected, "%d-%b-%Y").date()
+        df = df[df["Expiry_dt"].dt.date == selected_dt].copy()
+
         
         # ---- ATM-based Strike Range ----
         atm = round(df["Underlying"].iloc[-1] / 50) * 50
