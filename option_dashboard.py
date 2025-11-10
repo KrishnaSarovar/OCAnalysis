@@ -28,7 +28,7 @@ st.markdown("<meta http-equiv='refresh' content='180'>", unsafe_allow_html=True)
 # ------------------------------------
 # Market Timings
 # ------------------------------------
-MARKET_OPEN = dtime(9, 10)
+MARKET_OPEN = dtime(9, 05)
 MARKET_CLOSE = dtime(22, 0)
 
 def market_is_open():
