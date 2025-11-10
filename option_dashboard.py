@@ -367,6 +367,6 @@ else:
                 title=f"PUT OI Change Heatmap (per {interval}-min window)",
             )
 
-        st.success(f"✅ Updated at {datetime.now().strftime('%H:%M:%S')}")
+        st.success(f"✅ Updated at {datetime.now(IST).strftime('%H:%M:%S')}")
     else:
         st.error("⚠️ Could not fetch live data")
