@@ -33,7 +33,7 @@ IST = ZoneInfo("Asia/Kolkata")
 # Market Timings
 # ------------------------------------
 MARKET_OPEN = dtime(9, 10)
-MARKET_CLOSE = dtime(3, 30)
+MARKET_CLOSE = dtime(15, 30)
 
 def market_is_open():
     now_ist = datetime.now(IST).time()
