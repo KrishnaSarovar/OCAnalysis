@@ -107,7 +107,7 @@ def market_is_open():
 # def get_cached_data(symbol):
 #     return fetch_option_chain(symbol, retries=5)
 
-def fetch_option_chain(symbol="NIFTY", retries=3):
+def fetch_option_chain(symbol="NIFTY", retries=30):
     url = f"https://www.nseindia.com/api/option-chain-indices?symbol={symbol}"
 
     headers = {
@@ -120,9 +120,9 @@ def fetch_option_chain(symbol="NIFTY", retries=3):
 
     for attempt in range(retries):
         try:
-            session.get("https://www.nseindia.com", headers=headers, timeout=5)
+            session.get("https://www.nseindia.com", headers=headers, timeout=30)
 
-            response = session.get(url, headers=headers, timeout=8)
+            response = session.get(url, headers=headers, timeout=30)
 
             text = response.text.strip()
 
