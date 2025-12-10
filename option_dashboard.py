@@ -38,131 +38,65 @@ MARKET_CLOSE = dtime(22, 30)
 def market_is_open():
     now_ist = datetime.now(IST).time()
     return MARKET_OPEN <= now_ist <= MARKET_CLOSE
-
-# ------------------------------------
-# Fetch NSE Option Chain JSON
-# ------------------------------------
-# def fetch_option_chain(symbol="NIFTY", retries=5):
-#     """Fetch NSE Option Chain data with retry and error handling."""
-#     url = f"https://www.nseindia.com/api/option-chain-indices?symbol={symbol}"
-#     headers = {
-#         "User-Agent": (
-#             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-#             "AppleWebKit/537.36 (KHTML, like Gecko) "
-#             "Chrome/120.0 Safari/537.36"
-#         ),
-#         "Accept": "application/json, text/plain, */*",
-#         "Referer": f"https://www.nseindia.com/option-chain?symbol={symbol}",
-#         "Accept-Language": "en-US,en;q=0.9",
-#         "Connection": "keep-alive",
-#     }
-
-#     for attempt in range(retries):
-#         try:
-#             session = requests.Session()
-#             session.get("https://www.nseindia.com", headers=headers, timeout=60)
-#             time.sleep(random.uniform(5, 6))
-#             response = session.get(url, headers=headers, timeout=60)
-
-#             if not response.text.strip() or response.text.startswith("<"):
-#                 raise ValueError("Invalid NSE response")
-#             # Some responses are HTML (blocked)
-#             if response.text.strip().startswith("<"):
-#                 raise ValueError("Received HTML instead of JSON (likely blocked)")
-
-#             data = response.json()
-#             records = data.get("records", {}).get("data", [])
-#             underlying = data.get("records", {}).get("underlyingValue", 0)
-
-#             rows = []
-#             for rec in records:
-#                 strike = rec.get("strikePrice")
-#                 expiry = rec.get("expiryDate")
-#                 ce = rec.get("CE", {})
-#                 pe = rec.get("PE", {})
-#                 rows.append({
-#                     "Expiry": expiry,
-#                     "StrikePrice": strike,
-#                     "CE_OI": ce.get("openInterest"),
-#                     "CE_ChangeOI": ce.get("changeinOpenInterest"),
-#                     "CE_LTP": ce.get("lastPrice"),
-#                     "PE_OI": pe.get("openInterest"),
-#                     "PE_ChangeOI": pe.get("changeinOpenInterest"),
-#                     "PE_LTP": pe.get("lastPrice"),
-#                 })
-
-#             df = pd.DataFrame(rows).dropna(subset=["StrikePrice"])
-#             df["Underlying"] = underlying
-#             df["Timestamp"] = datetime.now(IST).isoformat()
-#             return df
-#         except Exception as e:
-#             st.warning(f"Attempt {attempt+1}/{retries} failed: {e}")
-#             time.sleep(2)
-#         if response.text.strip().startswith("<"):
-#             break
-#     st.error("❌ Failed to fetch data after retries")
-#     return pd.DataFrame()
-    
-# @st.cache_data(ttl=300)
-# def get_cached_data(symbol):
-#     return fetch_option_chain(symbol, retries=5)
-
-def fetch_option_chain(symbol="NIFTY", retries=30):
+def fetch_option_chain(symbol="NIFTY", retries=300):
+    """Fetch NSE Option Chain data with retry and error handling."""
     url = f"https://www.nseindia.com/api/option-chain-indices?symbol={symbol}"
-
     headers = {
-        "User-Agent": "Mozilla/5.0",
-        "Accept": "application/json",
+        "User-Agent": (
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+            "AppleWebKit/537.36 (KHTML, like Gecko) "
+            "Chrome/120.0 Safari/537.36"
+        ),
+        "Accept": "application/json, text/plain, */*",
         "Referer": f"https://www.nseindia.com/option-chain?symbol={symbol}",
+        "Accept-Language": "en-US,en;q=0.9",
+        "Connection": "keep-alive",
     }
-
-    session = requests.Session()
 
     for attempt in range(retries):
         try:
-            session.get("https://www.nseindia.com", headers=headers, timeout=30)
+            session = requests.Session()
+            session.get("https://www.nseindia.com", headers=headers, timeout=60)
+            time.sleep(random.uniform(5, 6))
+            response = session.get(url, headers=headers, timeout=60)
 
-            response = session.get(url, headers=headers, timeout=30)
-
-            text = response.text.strip()
-
-            # ❌ NSE blocked → EXIT immediately
-            if not text or text.startswith("<"):
-                st.warning("NSE blocked request (HTML response). Skipping.")
-                return pd.DataFrame()
+            if not response.text.strip() or response.text.startswith("<"):
+                raise ValueError("Invalid NSE response")
+            # Some responses are HTML (blocked)
+            if response.text.strip().startswith("<"):
+                raise ValueError("Received HTML instead of JSON (likely blocked)")
 
             data = response.json()
-            records = data["records"]["data"]
-            underlying = data["records"]["underlyingValue"]
+            records = data.get("records", {}).get("data", [])
+            underlying = data.get("records", {}).get("underlyingValue", 0)
 
             rows = []
-            for r in records:
+            for rec in records:
+                strike = rec.get("strikePrice")
+                expiry = rec.get("expiryDate")
+                ce = rec.get("CE", {})
+                pe = rec.get("PE", {})
                 rows.append({
-                    "Expiry": r.get("expiryDate"),
-                    "StrikePrice": r.get("strikePrice"),
-                    "CE_OI": r.get("CE", {}).get("openInterest"),
-                    "CE_ChangeOI": r.get("CE", {}).get("changeinOpenInterest"),
-                    "CE_LTP": r.get("CE", {}).get("lastPrice"),
-                    "PE_OI": r.get("PE", {}).get("openInterest"),
-                    "PE_ChangeOI": r.get("PE", {}).get("changeinOpenInterest"),
-                    "PE_LTP": r.get("PE", {}).get("lastPrice"),
+                    "Expiry": expiry,
+                    "StrikePrice": strike,
+                    "CE_OI": ce.get("openInterest"),
+                    "CE_ChangeOI": ce.get("changeinOpenInterest"),
+                    "CE_LTP": ce.get("lastPrice"),
+                    "PE_OI": pe.get("openInterest"),
+                    "PE_ChangeOI": pe.get("changeinOpenInterest"),
+                    "PE_LTP": pe.get("lastPrice"),
                 })
 
-            df = pd.DataFrame(rows)
+            df = pd.DataFrame(rows).dropna(subset=["StrikePrice"])
             df["Underlying"] = underlying
             df["Timestamp"] = datetime.now(IST).isoformat()
-
             return df
-
         except Exception as e:
-            st.warning(f"NSE fetch attempt {attempt+1} failed")
-            time.sleep(1)  # very short backoff
-
+            st.warning(f"Attempt {attempt+1}/{retries} failed: {e}")
+            time.sleep(2)
+    st.error("❌ Failed to fetch data after retries")
     return pd.DataFrame()
-    
-@st.cache_data(ttl=180)  # 3 minutes
-def get_cached_data(symbol):
-    return fetch_option_chain(symbol)
+
 
 def sanitize_row_for_json(row: dict) -> dict:
     """
