@@ -159,15 +159,10 @@ def fetch_option_chain(symbol="NIFTY", retries=3):
             time.sleep(1)  # very short backoff
 
     return pd.DataFrame()
+    
 @st.cache_data(ttl=180)  # 3 minutes
 def get_cached_data(symbol):
     return fetch_option_chain(symbol)
-df = get_cached_data(symbol)
-
-if df.empty:
-    st.warning("Live NSE data unavailable (blocked or delayed)")
-    st.stop()
-
 
 def sanitize_row_for_json(row: dict) -> dict:
     """
@@ -326,6 +321,11 @@ def compute_strike_time_distribution(hist, interval_minutes=30, strike_range=500
 # Streamlit UI Logic
 # ------------------------------------
 symbol = st.selectbox("Select Symbol", ["NIFTY", "BANKNIFTY", "FINNIFTY"])
+
+df = get_cached_data(symbol)
+if df.empty:
+    st.warning("Live NSE data unavailable (blocked or delayed)")
+    st.stop()
 
 if not market_is_open():
     st.warning("⏳ Market Closed (9:15–3:30 updates only)")
