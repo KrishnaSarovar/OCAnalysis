@@ -251,16 +251,6 @@ def compute_strike_time_distribution(hist, interval_minutes=30, strike_range=500
 
     return agg, atm
 
-# ------------------------------------
-# Streamlit UI Logic
-# ------------------------------------
-symbol = st.selectbox("Select Symbol", ["NIFTY", "BANKNIFTY", "FINNIFTY"])
-
-df = get_cached_data(symbol)
-if df.empty:
-    st.warning("Live NSE data unavailable (blocked or delayed)")
-    st.stop()
-
 if not market_is_open():
     st.warning("⏳ Market Closed (9:15–3:30 updates only)")
 else:
